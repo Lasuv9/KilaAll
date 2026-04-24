@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kila AI</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8f7ff;
+      --surface: #ffffff;
+      --primary: #7c3aed;
+      --primary-light: #a78bfa;
+      --primary-dim: #ede9fe;
+      --primary-glow: rgba(124, 58, 237, 0.15);
+      --text: #1e1b2e;
+      --text-soft: #6b7280;
+      --text-muted: #9ca3af;
+      --border: #e5e0f8;
+      --danger: #ef4444;
+      --success: #10b981;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --shadow: 0 4px 24px rgba(124, 58, 237, 0.08);
+      --shadow-lg: 0 8px 40px rgba(124, 58, 237, 0.15);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Sora', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── BACKGROUND ─── */
+    .bg-orbs {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      overflow: hidden;
+    }
+    .orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(70px); opacity: 0.25;
+    }
+    .orb-1 { width: 400px; height: 400px; background: #c4b5fd; top: -120px; right: -100px; animation: drift 12s ease-in-out infinite alternate; }
+    .orb-2 { width: 300px; height: 300px; background: #ddd6fe; bottom: 60px; left: -80px; animation: drift 16s ease-in-out infinite alternate-reverse; }
+    .orb-3 { width: 200px; height: 200px; background: #7c3aed; top: 40%; left: 50%; transform: translate(-50%,-50%); animation: pulse-orb 8s ease-in-out infinite; }
+
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(30px, 20px) scale(1.05); }
+    }
+    @keyframes pulse-orb {
+      0%, 100% { opacity: 0.12; transform: translate(-50%,-50%) scale(1); }
+      50% { opacity: 0.2; transform: translate(-50%,-50%) scale(1.15); }
+    }
+
+    /* ─── LAYOUT ─── */
+    #app {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column;
+      min-height: 100vh; max-width: 480px;
+      margin: 0 auto; padding: 0 16px 120px;
+    }
+
+    /* ─── HEADER ─── */
+    header {
+      padding: 20px 0 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      animation: slideDown 0.5s ease;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 14px rgba(124,58,237,0.35);
+      animation: logoGlow 3s ease-in-out infinite;
+    }
+    @keyframes logoGlow {
+      0%, 100% { box-shadow: 0 4px 14px rgba(124,58,237,0.35); }
+      50% { box-shadow: 0 4px 22px rgba(124,58,237,0.6); }
+    }
+    .logo-text { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+    .logo-text span { color: var(--primary); }
+
+    .support-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border: 1.5px solid var(--primary);
+      border-radius: 50px; background: transparent;
+      color: var(--primary); font-family: 'Sora', sans-serif;
+      font-size: 13px; font-weight: 500;
+      cursor: pointer; text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .support-btn:hover { background: var(--primary-dim); }
+    .support-btn:active { transform: scale(0.96); }
+
+    /* ─── LIMIT BAR ─── */
+    .limit-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+      animation: fadeUp 0.5s ease 0.1s both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .limit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .limit-label { font-size: 12px; font-weight: 500; color: var(--text-soft); letter-spacing: 0.5px; text-transform: uppercase; }
+    .limit-count {
+      font-size: 13px; font-weight: 600;
+      color: var(--primary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .limit-count.warn { color: var(--danger); }
+
+    .progress-track {
+      height: 6px; background: var(--primary-dim);
+      border-radius: 99px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--primary-light));
+      border-radius: 99px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .progress-fill.warn {
+      background: linear-gradient(90deg, var(--danger), #f87171);
+    }
+
+    .timer-row {
+      display: flex; align-items: center; gap: 6px;
+      margin-top: 9px; font-size: 12px; color: var(--text-muted);
+    }
+    .timer-val { font-family: 'JetBrains Mono', monospace; font-weight: 500; color: var(--text-soft); }
+
+    /* ─── CHAT ─── */
+    .chat-wrap {
+      flex: 1; display: flex; flex-direction: column; gap: 12px;
+      animation: fadeUp 0.5s ease 0.2s both;
+    }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; padding: 48px 20px;
+      text-align: center; color: var(--text-muted);
+    }
+    .empty-icon {
+      width: 56px; height: 56px;
+      background: var(--primary-dim);
+      border-radius: 18px; display: flex; align-items: center;
+      justify-content: center; font-size: 26px;
+      animation: floatIcon 4s ease-in-out infinite;
+    }
+    @keyframes floatIcon {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    .empty-state p { font-size: 15px; font-weight: 500; color: var(--text-soft); }
+    .empty-state span { font-size: 13px; }
+
+    .message {
+      display: flex; gap: 10px; align-items: flex-start;
+      animation: msgIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .message.user { flex-direction: row-reverse; }
+
+    .msg-avatar {
+      width: 32px; height: 32px; border-radius: 10px;
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .message.user .msg-avatar {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    }
+    .message.ai .msg-avatar {
+      background: var(--primary-dim); border: 1px solid var(--border);
+    }
+
+    .msg-bubble {
+      max-width: 78%;
+      padding: 11px 14px;
+      border-radius: 14px;
+      font-size: 14px; line-height: 1.55;
+    }
+    .message.user .msg-bubble {
+      background: linear-gradient(135deg, var(--primary), #6d28d9);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .message.ai .msg-bubble {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+      box-shadow: var(--shadow);
+    }
+
+    /* ─── TYPING ─── */
+    .typing-dots { display: flex; gap: 5px; padding: 4px 2px; }
+    .typing-dots span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--primary-light);
+      animation: dot 1.2s ease-in-out infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot {
+      0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ─── BLOCKED STATE ─── */
+    .blocked-card {
+      background: #fff5f5;
+      border: 1.5px solid #fecaca;
+      border-radius: var(--radius);
+      padding: 20px; text-align: center;
+      animation: fadeUp 0.4s ease;
+    }
+    .blocked-card .icon { font-size: 32px; margin-bottom: 8px; }
+    .blocked-card h3 { font-size: 16px; font-weight: 600; color: var(--danger); margin-bottom: 4px; }
+    .blocked-card p { font-size: 13px; color: var(--text-soft); }
+    .blocked-card .timer-big {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px; font-weight: 600;
+      color: var(--danger); margin: 12px 0;
+    }
+
+    /* ─── INPUT ─── */
+    .input-bar {
+      position: fixed; bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 100%; max-width: 480px;
+      padding: 12px 16px 20px;
+      background: linear-gradient(to top, var(--bg) 80%, transparent);
+      z-index: 10;
+    }
+    .input-wrap {
+      display: flex; gap: 10px; align-items: flex-end;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 8px 8px 8px 16px;
+      box-shadow: var(--shadow-lg);
+      transition: border-color 0.2s;
+    }
+    .input-wrap:focus-within { border-color: var(--primary); }
+
+    #msgInput {
+      flex: 1; border: none; outline: none; background: transparent;
+      font-family: 'Sora', sans-serif;
+      font-size: 14px; color: var(--text);
+      resize: none; max-height: 120px; line-height: 1.5;
+      padding: 4px 0;
+    }
+    #msgInput::placeholder { color: var(--text-muted); }
+
+    #sendBtn {
+      width: 40px; height: 40px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--primary), #6d28d9);
+      border: none; border-radius: 14px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(124,58,237,0.35);
+    }
+    #sendBtn:hover { transform: scale(1.05); }
+    #sendBtn:active { transform: scale(0.95); }
+    #sendBtn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    #sendBtn svg { width: 18px; height: 18px; fill: white; }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+    /* ─── TOAST ─── */
+    .toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--text); color: #fff;
+      font-size: 13px; font-weight: 500;
+      padding: 10px 20px; border-radius: 50px;
+      z-index: 999; pointer-events: none;
+      animation: toastIn 0.3s ease, toastOut 0.3s ease 2.5s forwards;
+    }
+    @keyframes toastIn { from { opacity: 0; top: 10px; } to { opacity: 1; top: 20px; } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+  </style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">✦</div>
+      <div class="logo-text">Kila <span>AI</span></div>
+    </div>
+    <a href="https://yoomoney.ru/fundraise/1H9EBMH7S75.260421" target="_blank" class="support-btn">
+      ❤️ Поддержать
+    </a>
+  </header>
+
+  <div class="limit-card" id="limitCard">
+    <div class="limit-header">
+      <span class="limit-label">Лимит сообщений</span>
+      <span class="limit-count" id="limitCount">5 / 5</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill" style="width:100%"></div>
+    </div>
+    <div class="timer-row">
+      <span>🔄 Обновление через</span>
+      <span class="timer-val" id="timerVal">—</span>
+    </div>
+  </div>
+
+  <div class="chat-wrap" id="chat">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">✦</div>
+      <p>Привет! Я Kila AI</p>
+      <span>Задай любой вопрос — я отвечу 🚀</span>
+    </div>
+  </div>
+</div>
+
+<div class="input-bar">
+  <div class="input-wrap">
+    <textarea id="msgInput" rows="1" placeholder="Напиши что-нибудь…"></textarea>
+    <button id="sendBtn">
+      <svg viewBox="0 0 24 24"><path d="M3 3l18 9-18 9V3zm2 2.5v5l8 1.5-8 1.5v5l14-7L5 5.5z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+const API_KEY = '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';
+const LIMIT = 5;
+const RESET_HOURS = 24;
+
+// ─── Telegram WebApp Init ───
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const userId = tg?.initDataUnsafe?.user?.id
+  ? String(tg.initDataUnsafe.user.id)
+  : 'demo_' + Math.random().toString(36).slice(2,8);
+
+// ─── Storage helpers ───
+function getKey(uid) { return `kila_limit_${uid}`; }
+
+function loadState(uid) {
+  try {
+    const raw = localStorage.getItem(getKey(uid));
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function saveState(uid, state) {
+  localStorage.setItem(getKey(uid), JSON.stringify(state));
+}
+
+function getOrCreateState(uid) {
+  let s = loadState(uid);
+  if (!s) {
+    s = { count: 0, resetAt: Date.now() + RESET_HOURS * 3600 * 1000 };
+    saveState(uid, s);
+  }
+  // Auto-reset if expired
+  if (Date.now() >= s.resetAt) {
+    s = { count: 0, resetAt: Date.now() + RESET_HOURS * 3600 * 1000 };
+    saveState(uid, s);
+  }
+  return s;
+}
+
+function useMessage(uid) {
+  const s = getOrCreateState(uid);
+  s.count++;
+  saveState(uid, s);
+  return s;
+}
+
+function remaining(uid) {
+  const s = getOrCreateState(uid);
+  return Math.max(0, LIMIT - s.count);
+}
+
+// ─── UI refs ───
+const chat = document.getElementById('chat');
+const emptyState = document.getElementById('emptyState');
+const limitCount = document.getElementById('limitCount');
+const progressFill = document.getElementById('progressFill');
+const timerVal = document.getElementById('timerVal');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+
+let messages = []; // conversation history
+
+// ─── Timer ───
+function formatTimer(ms) {
+  if (ms <= 0) return '00:00:00';
+  const totalSec = Math.floor(ms / 1000);
+  const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+  const s = String(totalSec % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+function updateUI() {
+  const s = getOrCreateState(userId);
+  const rem = Math.max(0, LIMIT - s.count);
+  const pct = (rem / LIMIT) * 100;
+
+  limitCount.textContent = `${rem} / ${LIMIT}`;
+  limitCount.className = 'limit-count' + (rem === 0 ? ' warn' : '');
+  progressFill.style.width = pct + '%';
+  progressFill.className = 'progress-fill' + (rem === 0 ? ' warn' : '');
+
+  const msLeft = Math.max(0, s.resetAt - Date.now());
+  timerVal.textContent = formatTimer(msLeft);
+
+  sendBtn.disabled = rem === 0;
+}
+
+setInterval(updateUI, 1000);
+updateUI();
+
+// ─── Auto-resize textarea ───
+msgInput.addEventListener('input', () => {
+  msgInput.style.height = 'auto';
+  msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+});
+
+msgInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+sendBtn.addEventListener('click', send);
+
+// ─── Add message bubble ───
+function addBubble(role, text) {
+  if (emptyState) emptyState.style.display = 'none';
+
+  const wrap = document.createElement('div');
+  wrap.className = `message ${role}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.textContent = role === 'user' ? '👤' : '✦';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+
+  wrap.appendChild(avatar);
+  wrap.appendChild(bubble);
+  chat.appendChild(wrap);
+  chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+  return bubble;
+}
+
+function addTyping() {
+  if (emptyState) emptyState.style.display = 'none';
+  const wrap = document.createElement('div');
+  wrap.className = 'message ai';
+  wrap.id = 'typingMsg';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.textContent = '✦';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
+
+  wrap.appendChild(avatar);
+  wrap.appendChild(bubble);
+  chat.appendChild(wrap);
+  chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+}
+
+function removeTyping() {
+  const t = document.getElementById('typingMsg');
+  if (t) t.remove();
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ─── Main send function ───
+async function send() {
+  const text = msgInput.value.trim();
+  if (!text) return;
+
+  const s = getOrCreateState(userId);
+  const rem = Math.max(0, LIMIT - s.count);
+
+  if (rem === 0) {
+    showToast('⏳ Лимит исчерпан! Жди обновления.');
+    return;
+  }
+
+  // Deduct
+  useMessage(userId);
+  updateUI();
+
+  msgInput.value = '';
+  msgInput.style.height = 'auto';
+  sendBtn.disabled = true;
+
+  addBubble('user', text);
+  messages.push({ role: 'user', content: text });
+
+  addTyping();
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://kila-ai.app',
+        'X-Title': 'Kila AI'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'Ты Kila AI — умный и дружелюбный русскоязычный ассистент. Отвечай чётко, по делу, с умеренной теплотой. Ты создан командой Kilasfs Studio.' },
+          ...messages
+        ],
+        temperature: 0.7,
+        max_tokens: 800
+      })
+    });
+
+    removeTyping();
+
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content || 'Что-то пошло не так 😕';
+
+    messages.push({ role: 'assistant', content: reply });
+    addBubble('ai', reply);
+
+  } catch (err) {
+    removeTyping();
+    addBubble('ai', '⚠️ Ошибка соединения. Попробуй ещё раз.');
+    // Refund message on error
+    const s2 = getOrCreateState(userId);
+    s2.count = Math.max(0, s2.count - 1);
+    saveState(userId, s2);
+    updateUI();
+  }
+
+  updateUI();
+}
+</script>
+</body>
+</html>
